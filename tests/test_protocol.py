@@ -1,5 +1,6 @@
 import pytest
 
+from pyredis.commands import handle_command
 from pyredis.protocol import extract_frame_from_buffer, encode_message
 from pyredis.types import (
     Array,
