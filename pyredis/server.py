@@ -1,12 +1,14 @@
 import socket
+import threading
 
 from pyredis.commands import handle_command
+from pyredis.datastore import Datastore
 from pyredis.protocol import extract_frame_from_buffer, encode_message
 
 RECV_SIZE = 2048
 
 
-def handle_client_connection(client_socket):
+def handle_client_connection(client_socket, datastore):
     buffer = bytearray()
 
     try:
@@ -22,7 +24,7 @@ def handle_client_connection(client_socket):
 
             if frame:
                 buffer = buffer[frame_size:]
-                result = handle_command(frame)
+                result = handle_command(frame, datastore)
                 client_socket.send(encode_message(result))
     finally:
         client_socket.close()
@@ -32,6 +34,7 @@ class Server:
     def __init__(self, port):
         self.port = port
         self._running = False
+        self._datastore = Datastore()
 
     def run(self):
         self._running = True
@@ -44,7 +47,11 @@ class Server:
 
             while self._running:
                 connection, _ = server_socket.accept()
-                handle_client_connection(connection)
+
+                client_handler = threading.Thread(
+                    target=handle_client_connection, args=(connection, self._datastore)
+                )
+                client_handler.start()
 
     def stop(self):
         self._running = False

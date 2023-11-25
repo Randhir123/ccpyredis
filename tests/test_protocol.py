@@ -1,6 +1,7 @@
 import pytest
 
 from pyredis.commands import handle_command
+from pyredis.datastore import Datastore
 from pyredis.protocol import extract_frame_from_buffer, encode_message
 from pyredis.types import (
     Array,
@@ -105,5 +106,12 @@ def test_encode_message(message, expected):
     ],
 )
 def test_handle_command(command, expected):
-    result = handle_command(command)
+    datastore = Datastore()
+    result = handle_command(command, datastore)
     assert result == expected
+
+
+def test_set_and_get_item():
+    ds = Datastore()
+    ds['key'] = 1
+    assert ds['key'] == 1
