@@ -10,6 +10,9 @@ class SimpleString:
     def resp_encode(self):
         return f'+{self.data}\r\n'.encode()
 
+    def __str__(self):
+        return self.data
+
 
 @dataclass
 class Error:
@@ -18,6 +21,9 @@ class Error:
     def resp_encode(self):
         return f'-{self.data}\r\n'.encode()
 
+    def __str__(self):
+        return self.data
+
 
 @dataclass
 class Integer:
@@ -25,6 +31,9 @@ class Integer:
 
     def resp_encode(self):
         return f':{self.value}\r\n'.encode()
+
+    def __str__(self):
+        return str(self.value)
 
 
 @dataclass
@@ -37,6 +46,9 @@ class BulkString:
         elif self.data is None:
             return f'${-1}\r\n'.encode()
         return f'${len(self.data)}\r\n{self.data}\r\n'.encode()
+
+    def __str__(self):
+        return str(self.data)
 
 
 @dataclass
@@ -60,3 +72,6 @@ class Array(Sequence):
 
     def __len__(self) -> int:
         return len(self.data)
+
+    def __str__(self):
+        return '[' + ','.join([str(s) for s in self.data]) + ']'
