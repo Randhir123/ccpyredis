@@ -15,7 +15,7 @@ def _handle_ping(command, datastore):
     return SimpleString('PONG')
 
 
-def _handle_unrecognised_command(command, datastore):
+def _handle_unrecognised_command(command):
     args = ' '.join((f"'{c.data.decode()}'" for c in command[1:]))
     return Error(
         f"ERR unknown command '{command[0].data.decode()}', with args beginning with: {args}"
