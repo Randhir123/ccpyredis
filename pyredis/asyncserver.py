@@ -4,13 +4,12 @@ from pyredis.commands import handle_command
 from pyredis.datastore import Datastore
 from pyredis.protocol import extract_frame_from_buffer, encode_message
 
-_DATASTORE = Datastore()
-
 
 class RedisServerProtocol(asyncio.Protocol):
-    def __init__(self):
+    def __init__(self, datastore):
         self.transport = None
         self.buffer = bytearray()
+        self.datastore = datastore
 
     def connection_made(self, transport):
         self.transport = transport
@@ -25,5 +24,5 @@ class RedisServerProtocol(asyncio.Protocol):
 
         if frame:
             self.buffer = self.buffer[frame_size:]
-            result = handle_command(frame, _DATASTORE)
+            result = handle_command(frame, self.datastore)
             self.transport.write(encode_message(result))

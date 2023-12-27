@@ -34,11 +34,29 @@ def _handle_get(command, datastore):
 
 
 def _handle_set(command, datastore):
-    if len(command) == 3:
+    length = len(command)
+
+    if length >= 3:
         key = command[1].data.decode()
         value = command[2].data.decode()
-        datastore[key] = value
-        return SimpleString('OK')
+
+        if length == 3:
+            datastore[key] = value
+            return SimpleString('OK')
+        elif length == 5:
+            expiry_mode = command[3].data.decode()
+            try:
+                expiry = int(command[4].data.decode())
+            except ValueError:
+                return Error('ERR value is not an integer or out of range')
+
+            if expiry_mode == 'ex':
+                datastore.set_with_expiry(key, value, expiry)
+                return SimpleString('OK')
+            elif expiry_mode == 'px':
+                datastore.set_with_expiry(key, value, expiry / 1000)
+                return  SimpleString('OK')
+        return Error('ERR syntax error')
     return Error("Error wrong number of arguments for 'set' command")
 
 

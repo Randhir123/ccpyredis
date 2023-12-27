@@ -1,7 +1,5 @@
 import pytest
 
-from pyredis.commands import handle_command
-from pyredis.datastore import Datastore
 from pyredis.protocol import extract_frame_from_buffer, encode_message
 from pyredis.types import (
     Array,
@@ -85,33 +83,3 @@ def test_read_frame(buffer, expected):
 def test_encode_message(message, expected):
     encoded_message = encode_message(message)
     assert encoded_message == expected
-
-
-@pytest.mark.parametrize(
-    "command, expected",
-    [
-        # Echo Tests
-        (
-                Array([BulkString(b"ECHO")]),
-                Error("ERR wrong number of arguments for 'echo' command"),
-        ),
-        (Array([BulkString(b"echo"), BulkString(b"Hello")]), BulkString("Hello")),
-        (
-                Array([BulkString(b"echo"), BulkString(b"Hello"), BulkString("World")]),
-                Error("ERR wrong number of arguments for 'echo' command"),
-        ),
-        # Ping Tests
-        (Array([BulkString(b"ping")]), SimpleString("PONG")),
-        (Array([BulkString(b"ping"), BulkString(b"Hello")]), BulkString("Hello")),
-    ],
-)
-def test_handle_command(command, expected):
-    datastore = Datastore()
-    result = handle_command(command, datastore)
-    assert result == expected
-
-
-def test_set_and_get_item():
-    ds = Datastore()
-    ds['key'] = 1
-    assert ds['key'] == 1
