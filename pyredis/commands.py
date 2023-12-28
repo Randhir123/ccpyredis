@@ -1,4 +1,4 @@
-from pyredis.types import BulkString, Error, SimpleString
+from pyredis.types import BulkString, Error, SimpleString, Integer, Array
 
 
 def _handle_echo(command, datastore):
@@ -55,9 +55,97 @@ def _handle_set(command, datastore):
                 return SimpleString('OK')
             elif expiry_mode == 'px':
                 datastore.set_with_expiry(key, value, expiry / 1000)
-                return  SimpleString('OK')
+                return SimpleString('OK')
         return Error('ERR syntax error')
     return Error("Error wrong number of arguments for 'set' command")
+
+
+def _handle_exists(command, datastore):
+    if len(command) >= 2:
+        count = 0
+        for c in command[1:]:
+            key = c.data.decode()
+            if key in datastore:
+                count += 1
+        return Integer(count)
+    return Error("ERR wrong number of arguments for 'exists' command")
+
+
+def _handle_del(command, datastore):
+    if len(command) > 2:
+        count = 0
+        for c in command[1:]:
+            key = c.data.decode()
+            if key in datastore:
+                del datastore[key]
+                count += 1
+        return Integer(count)
+    return Error("ERR wrong number of arguments for 'del' command")
+
+
+def _handle_incr(command, datastore):
+    if len(command) == 2:
+        key = command[1].data.decode()
+        try:
+            return Integer(datastore.incr(key))
+        except:
+            return Error("ERR value is not an integer or out of range")
+    return Error("ERR wrong number of arguments for 'incr' command")
+
+
+def _handle_decr(command, datastore):
+    if len(command) == 2:
+        key = command[1].data.decode()
+        try:
+            return Integer(datastore.decr(key))
+        except:
+            return Error("ERR value is not an integer or out of range")
+    return Error("ERR wrong number of arguments for 'decr' command")
+
+
+def _handle_lpush(command, datastore):
+    if len(command) >= 2:
+        count = 0
+        key = command[1].data.decode()
+
+        try:
+            for c in command[2:]:
+                item = c.data.decode()
+                count = datastore.prepend(key, item)
+            return Integer(count)
+        except TypeError:
+            return Error("WRONGTYPE Operation against a key holding the wrong kind of value")
+    return Error("ERR wrong number of arguments for 'lpush' command")
+
+
+def _handle_rpush(command, datastore):
+    if len(command) >= 2:
+        count = 0
+        key = command[1].data.decode()
+
+        try:
+            for c in command[2:]:
+                item = c.data.decode()
+                count = datastore.append(key, item)
+            return Integer(count)
+        except TypeError:
+            return Error("WRONGTYPE Operation against a key holding the wrong kind of value")
+    return Error("ERR wrong number of arguments for 'rpush' command")
+
+
+def _handle_lrange(command, datastore):
+    if len(command) == 4:
+        key = command[1].data.decode()
+        start = int(command[2].data.decode())
+        stop = int(command[3].data.decode())
+
+        try:
+            items = datastore.lrange(key, start, stop)
+            return Array([BulkString(i) for i in items])
+        except TypeError:
+            return Error("WRONGTYPE Operation against a key holding the wrong kind of value")
+
+    return Error("ERR wrong number of arguments for 'lrange' command")
 
 
 def handle_command(command, datastore):
@@ -70,5 +158,19 @@ def handle_command(command, datastore):
             return _handle_get(command, datastore)
         case "SET":
             return _handle_set(command, datastore)
+        case "DECR":
+            return _handle_decr(command, datastore)
+        case "DEL":
+            return _handle_del(command, datastore)
+        case "EXISTS":
+            return _handle_exists(command, datastore)
+        case "INCR":
+            return _handle_incr(command, datastore)
+        case "LPUSH":
+            return _handle_lpush(command, datastore)
+        case "LRANGE":
+            return _handle_lrange(command, datastore)
+        case "RPUSH":
+            return _handle_rpush(command, datastore)
 
     return _handle_unrecognised_command(command)

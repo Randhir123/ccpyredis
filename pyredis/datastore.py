@@ -1,4 +1,6 @@
+from collections import deque
 from dataclasses import dataclass
+from itertools import islice
 from random import sample
 from threading import Lock
 from time import time_ns
@@ -47,6 +49,49 @@ class Datastore:
     def __setitem__(self, key, value):
         with self._lock:
             self._data[key] = DataEntry(value)
+
+    def incr(self, key):
+        with self._lock:
+            item = self._data.get(key, DataEntry(0))
+            value = int(item.value) + 1
+            item.value = str(value)
+            self._data[key] = item
+        return value
+
+    def decr(self, key):
+        with self._lock:
+            value = int(self._data.get(key, DataEntry(0)).value) - 1
+            self._data[key].value = str(value)
+        return value
+
+    def append(self, key, value):
+        with self._lock:
+            item = self._data.get(key, DataEntry(deque()))
+            if not isinstance(item.value, deque):
+                raise TypeError
+            item.value.append(value)
+            self._data[key] = item
+            return len(item.value)
+
+    def lrange(self, key, start, stop):
+        with self._lock:
+            item = self._data.get(key, DataEntry(deque()))
+            if not isinstance(item.value, deque):
+                raise TypeError
+
+            return list(islice(item.value, start, stop))
+
+    def prepend(self, key, value):
+        with self._lock:
+            item = self._data.get(key, DataEntry(deque()))
+            print("HERE")
+            if not isinstance(item.value, deque):
+                print(item.value)
+                raise TypeError
+            print("HERE 2")
+            item.value.insert(0, value)
+            self._data[key] = item
+            return len(item.value)
 
     def set_with_expiry(self, key, value, expiry: int):
         with self._lock:

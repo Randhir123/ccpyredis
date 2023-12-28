@@ -4,7 +4,7 @@ import pytest
 
 from pyredis.commands import handle_command
 from pyredis.datastore import Datastore
-from pyredis.types import Array, BulkString, Error, SimpleString
+from pyredis.types import Array, BulkString, Error, SimpleString, Integer
 
 
 @pytest.mark.parametrize(
@@ -36,6 +36,22 @@ from pyredis.types import Array, BulkString, Error, SimpleString
         (
                 Array([BulkString(b"set"), SimpleString(b"key"), SimpleString(b"value"), SimpleString(b"foo")]),
                 Error("ERR syntax error"),
+        ),
+        (
+                Array([BulkString(b"exists")]),
+                Error("ERR wrong number of arguments for 'exists' command"),
+        ),
+        (Array([BulkString(b"exists"), SimpleString(b"invalid key")]), Integer(0)),
+        (Array([BulkString(b"exists"), SimpleString(b"key")]), Integer(1)),
+        (
+                Array(
+                    [
+                        BulkString(b"exists"),
+                        SimpleString(b"invalid key"),
+                        SimpleString(b"key"),
+                    ]
+                ),
+                Integer(1),
         ),
     ],
 )
@@ -110,3 +126,55 @@ def test_set_with_expiry():
     assert stored.value == value
     diff = - expected_expiry - stored.expiry
     assert diff < 10000
+
+
+# Incr Tests
+def test_handle_incr_command_valid_key():
+    datastore = Datastore()
+    result = handle_command(Array([BulkString(b"incr"), SimpleString(b"ki")]), datastore)
+    assert result == Integer(1)
+    result = handle_command(Array([BulkString(b"incr"), SimpleString(b"ki")]), datastore)
+    assert result == Integer(2)
+
+
+# Decr Tests
+def test_handle_decr():
+    datastore = Datastore()
+    result = handle_command(Array([BulkString(b"incr"), SimpleString(b"kd")]), datastore)
+    assert result == Integer(1)
+    result = handle_command(Array([BulkString(b"incr"), SimpleString(b"kd")]), datastore)
+    assert result == Integer(2)
+    result = handle_command(Array([BulkString(b"decr"), SimpleString(b"kd")]), datastore)
+    assert result == Integer(1)
+    result = handle_command(Array([BulkString(b"decr"), SimpleString(b"kd")]), datastore)
+    assert result == Integer(0)
+
+
+def test_handle_decr_invalid_key():
+    datastore = Datastore()
+    result = handle_command(Array([BulkString(b"decr"), SimpleString(b"kmissing")]), datastore)
+    assert result == Error("ERR value is not an integer or out of range")
+
+
+# Lpush Tests
+def test_handle_lpush_lrange():
+    datastore = Datastore()
+    result = handle_command(Array([BulkString(b"lpush"), SimpleString(b"klp"), SimpleString(b"second")]), datastore)
+    assert result == Integer(1)
+    result = handle_command(Array([BulkString(b"lpush"), SimpleString(b"klp"), SimpleString(b"first")]), datastore)
+    assert result == Integer(2)
+    result = handle_command(Array([BulkString(b"lrange"), SimpleString(b"klp"), BulkString(b"0"), BulkString(b"2")]),
+                            datastore)
+    assert result == Array(data=[BulkString("first"), BulkString("second")])
+
+
+# Rpush Tests
+def test_handle_rpush_lrange():
+    datastore = Datastore()
+    result = handle_command(Array([BulkString(b"rpush"), SimpleString(b"krp"), SimpleString(b"first")]), datastore)
+    assert result == Integer(1)
+    result = handle_command(Array([BulkString(b"rpush"), SimpleString(b"krp"), SimpleString(b"second")]), datastore)
+    assert result == Integer(2)
+    result = handle_command(Array([BulkString(b"lrange"), SimpleString(b"krp"), BulkString(b"0"), BulkString(b"2")]),
+                            datastore)
+    assert result == Array(data=[BulkString("first"), BulkString("second")])
