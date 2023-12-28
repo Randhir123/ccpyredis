@@ -5,6 +5,7 @@ import pytest
 from pyredis.commands import handle_command
 from pyredis.datastore import Datastore
 from pyredis.types import Array, BulkString, Error, SimpleString, Integer
+from contextlib import nullcontext as does_not_raise
 
 
 @pytest.mark.parametrize(
@@ -13,7 +14,7 @@ from pyredis.types import Array, BulkString, Error, SimpleString, Integer
         # Echo Tests
         (
                 Array([BulkString(b"ECHO")]),
-                Error("ERR wrong number of arguments for 'echo' command"),
+                Error("ERR wrong number of arguments for 'echo' command")
         ),
         (Array([BulkString(b"echo"), BulkString(b"Hello")]), BulkString("Hello")),
         (
@@ -37,12 +38,24 @@ from pyredis.types import Array, BulkString, Error, SimpleString, Integer
                 Array([BulkString(b"set"), SimpleString(b"key"), SimpleString(b"value"), SimpleString(b"foo")]),
                 Error("ERR syntax error"),
         ),
+    ],
+)
+def test_handle_command(command, expected):
+    datastore = Datastore()
+    result = handle_command(command, datastore)
+    assert result == expected
+
+
+@pytest.mark.parametrize(
+    "command, expected, expectation",
+    [
         (
                 Array([BulkString(b"exists")]),
                 Error("ERR wrong number of arguments for 'exists' command"),
+                does_not_raise()
         ),
-        (Array([BulkString(b"exists"), SimpleString(b"invalid key")]), Integer(0)),
-        (Array([BulkString(b"exists"), SimpleString(b"key")]), Integer(1)),
+        (Array([BulkString(b"exists"), SimpleString(b"invalid key")]), Integer(0), pytest.raises(KeyError)),
+        (Array([BulkString(b"exists"), SimpleString(b"key")]), Integer(1), pytest.raises(KeyError)),
         (
                 Array(
                     [
@@ -52,13 +65,15 @@ from pyredis.types import Array, BulkString, Error, SimpleString, Integer
                     ]
                 ),
                 Integer(1),
+                pytest.raises(KeyError)
         ),
     ],
 )
-def test_handle_command(command, expected):
-    datastore = Datastore()
-    result = handle_command(command, datastore)
-    assert result == expected
+def test_handle_command(command, expected, expectation):
+    with expectation:
+        datastore = Datastore()
+        result = handle_command(command, datastore)
+        assert result == expected
 
 
 def test_set_and_get_item():

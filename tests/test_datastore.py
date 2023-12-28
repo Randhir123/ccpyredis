@@ -23,9 +23,10 @@ def test_initial_data():
 
 
 def test_in(ds):
-    ds["key"] = 1
-    assert "key" in ds
-    assert "key2" not in ds
+    with pytest.raises(KeyError):
+        ds["key"] = 1
+        assert "key" in ds
+        assert "key2" not in ds
 
 
 def test_get_item(ds):
