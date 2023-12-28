@@ -33,7 +33,7 @@ def _handle_get(command, datastore):
     return Error("ERR wrong number of arguments for 'get' command")
 
 
-def _handle_set(command, datastore):
+def _handle_set(command, datastore, persister=None):
     length = len(command)
 
     if length >= 3:
@@ -42,6 +42,8 @@ def _handle_set(command, datastore):
 
         if length == 3:
             datastore[key] = value
+            if persister:
+                persister.log_command(command)
             return SimpleString('OK')
         elif length == 5:
             expiry_mode = command[3].data.decode()
@@ -52,9 +54,13 @@ def _handle_set(command, datastore):
 
             if expiry_mode == 'ex':
                 datastore.set_with_expiry(key, value, expiry)
+                if persister:
+                    persister.log_command(command)
                 return SimpleString('OK')
             elif expiry_mode == 'px':
                 datastore.set_with_expiry(key, value, expiry / 1000)
+                if persister:
+                    persister.log_command(command)
                 return SimpleString('OK')
         return Error('ERR syntax error')
     return Error("Error wrong number of arguments for 'set' command")
@@ -71,7 +77,7 @@ def _handle_exists(command, datastore):
     return Error("ERR wrong number of arguments for 'exists' command")
 
 
-def _handle_del(command, datastore):
+def _handle_del(command, datastore, persister=None):
     if len(command) > 2:
         count = 0
         for c in command[1:]:
@@ -79,31 +85,39 @@ def _handle_del(command, datastore):
             if key in datastore:
                 del datastore[key]
                 count += 1
+        if persister: 
+            persister.log_command(command)
         return Integer(count)
     return Error("ERR wrong number of arguments for 'del' command")
 
 
-def _handle_incr(command, datastore):
+def _handle_incr(command, datastore, persister=None):
     if len(command) == 2:
         key = command[1].data.decode()
         try:
-            return Integer(datastore.incr(key))
+            result = datastore.incr(key)
+            if persister:
+                persister.log_command(command)
+            return Integer(result)
         except:
             return Error("ERR value is not an integer or out of range")
     return Error("ERR wrong number of arguments for 'incr' command")
 
 
-def _handle_decr(command, datastore):
+def _handle_decr(command, datastore, persister=None):
     if len(command) == 2:
         key = command[1].data.decode()
         try:
-            return Integer(datastore.decr(key))
+            result = datastore.decr(key)
+            if persister: 
+                persister.log_command(command)
+            return Integer(result)
         except:
             return Error("ERR value is not an integer or out of range")
     return Error("ERR wrong number of arguments for 'decr' command")
 
 
-def _handle_lpush(command, datastore):
+def _handle_lpush(command, datastore, persister=None):
     if len(command) >= 2:
         count = 0
         key = command[1].data.decode()
@@ -112,13 +126,15 @@ def _handle_lpush(command, datastore):
             for c in command[2:]:
                 item = c.data.decode()
                 count = datastore.prepend(key, item)
+            if persister: 
+                persister.log_command(command)
             return Integer(count)
         except TypeError:
             return Error("WRONGTYPE Operation against a key holding the wrong kind of value")
     return Error("ERR wrong number of arguments for 'lpush' command")
 
 
-def _handle_rpush(command, datastore):
+def _handle_rpush(command, datastore, persister=None):
     if len(command) >= 2:
         count = 0
         key = command[1].data.decode()
@@ -127,6 +143,8 @@ def _handle_rpush(command, datastore):
             for c in command[2:]:
                 item = c.data.decode()
                 count = datastore.append(key, item)
+            if persister: 
+                persister.log_command(command)
             return Integer(count)
         except TypeError:
             return Error("WRONGTYPE Operation against a key holding the wrong kind of value")
@@ -148,7 +166,7 @@ def _handle_lrange(command, datastore):
     return Error("ERR wrong number of arguments for 'lrange' command")
 
 
-def handle_command(command, datastore):
+def handle_command(command, datastore, persister=None):
     match command[0].data.decode().upper():
         case "ECHO":
             return _handle_echo(command, datastore)
@@ -157,20 +175,20 @@ def handle_command(command, datastore):
         case "GET":
             return _handle_get(command, datastore)
         case "SET":
-            return _handle_set(command, datastore)
+            return _handle_set(command, datastore, persister)
         case "DECR":
-            return _handle_decr(command, datastore)
+            return _handle_decr(command, datastore, persister)
         case "DEL":
-            return _handle_del(command, datastore)
+            return _handle_del(command, datastore, persister)
         case "EXISTS":
             return _handle_exists(command, datastore)
         case "INCR":
-            return _handle_incr(command, datastore)
+            return _handle_incr(command, datastore, persister)
         case "LPUSH":
-            return _handle_lpush(command, datastore)
+            return _handle_lpush(command, datastore, persister)
         case "LRANGE":
             return _handle_lrange(command, datastore)
         case "RPUSH":
-            return _handle_rpush(command, datastore)
+            return _handle_rpush(command, datastore, persister)
 
     return _handle_unrecognised_command(command)

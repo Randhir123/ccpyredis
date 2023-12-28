@@ -6,6 +6,7 @@ import typer
 
 from pyredis.asyncserver import RedisServerProtocol
 from pyredis.datastore import Datastore
+from pyredis.persistence import AppendOnlyPersister, restore_from_file
 from pyredis.server import Server
 
 REDIS_DEFAULT_PORT = 6379
@@ -49,13 +50,17 @@ async def main(port=None):
     print(f"Starting PyRedis on port: {port}")
 
     datastore = Datastore()
+    if not restore_from_file('ccdb.aof', datastore):
+        return -1
+
+    persister = AppendOnlyPersister('ccdb.aof')
 
     loop = asyncio.get_running_loop()
 
     task = loop.create_task(check_expiry_task(datastore))
 
     server = await loop.create_server(
-        lambda: RedisServerProtocol(datastore), "127.0.0.1", port
+        lambda: RedisServerProtocol(datastore, persister), "127.0.0.1", port
     )
 
     async with server:

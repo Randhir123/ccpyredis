@@ -50,6 +50,12 @@ class BulkString:
     def as_str(self):
         return str(self.data.decode())
 
+    def file_encode(self):
+        if self.data is None:
+            return b"$-1\r\n"
+
+        return f"${len(self.data)}\r\n{self.data.decode()}\r\n".encode()
+
 
 @dataclass
 class Array(Sequence):
